@@ -3,7 +3,7 @@ var router = express.Router();
 const { Client } = require('pg')
 
 /* GET home page. */
-router.get('', (req, res) => {
+router.post('', (req, res) => {
 
   const client = new Client({
     user: 'root',
@@ -14,15 +14,15 @@ router.get('', (req, res) => {
   })
 
   // 地域検索
-  let SELECT_AREA_QUERY =                 "SELECT count(area_code) count "
-  SELECT_AREA_QUERY = SELECT_AREA_QUERY +   "FROM m_area "
-  SELECT_AREA_QUERY = SELECT_AREA_QUERY +  "WHERE prefectures = $1 "
-  SELECT_AREA_QUERY = SELECT_AREA_QUERY +    "AND municipality = $2 "
-  SELECT_AREA_QUERY = SELECT_AREA_QUERY +    "AND district = $3 "
-  SELECT_AREA_QUERY = SELECT_AREA_QUERY +  "GROUP BY (area_code) "
+  let SELECT_AREA_QUERY = "SELECT count(area_code) count "
+  SELECT_AREA_QUERY = SELECT_AREA_QUERY + "FROM m_area "
+  SELECT_AREA_QUERY = SELECT_AREA_QUERY + "WHERE prefectures = $1 "
+  SELECT_AREA_QUERY = SELECT_AREA_QUERY + "AND municipality = $2 "
+  SELECT_AREA_QUERY = SELECT_AREA_QUERY + "AND district = $3 "
+  SELECT_AREA_QUERY = SELECT_AREA_QUERY + "GROUP BY (area_code) "
 
   // 地域登録
-  let INSERT_AREA_QUERY =                 "INSERT INTO m_area"
+  let INSERT_AREA_QUERY = "INSERT INTO m_area"
   INSERT_AREA_QUERY = INSERT_AREA_QUERY + "VALUES (4, $1, $2, $3, now(), now())"
 
   let prefectures = req.body.prefectures
@@ -31,12 +31,11 @@ router.get('', (req, res) => {
 
   client.connect()
 
-  // プロミス
-  function mainPromise(i) {
-    return new Promise(function (resolve, reject) {
-      console.log(i)
-      console.log(resolve)
-      console.log(reject)
+  // プロミス配列
+  var promises = [];
+  for (var i = 0; i < req.body.data.length; i++) {
+    promises.push(new Promise(function (resolve, reject) {
+
       let district = datas[i].district
 
       // 地域検索
@@ -44,30 +43,20 @@ router.get('', (req, res) => {
         const count = result.rows
         // console.log(count)
         // if (count == 0) {
-          // // 地域が0件の場合は新規登録
-          // // 地域登録
-          // let INSERT_AREA_QUERY_PARAM = [prefectures, municipality, district]
-          // client.query(INSERT_AREA_QUERY, INSERT_AREA_QUERY_PARAM).then((result) => {
-          // }).catch((e) => {
-          //   reject({ message: JSON.stringify(e)});
-          // })
+        // // 地域が0件の場合は新規登録
+        // // 地域登録
+        // let INSERT_AREA_QUERY_PARAM = [prefectures, municipality, district]
+        // client.query(INSERT_AREA_QUERY, INSERT_AREA_QUERY_PARAM).then((result) => {
+        // }).catch((e) => {
+        //   reject({ message: JSON.stringify(e)});
+        // })
         // }
 
-        console.log(SELECT_AREA_QUERY)
-        console.log(result)
-        resolve(result.rows);
+        resolve(result.rows)
       }).catch((e) => {
-        // reject({ message: JSON.stringify(e)});
-        reject()
-        console.log(e)
+        reject(e)
       })
-    });
-  }
-  
-  // プロミス配列
-  var promises = [];
-  for (var i = 0; i < req.body.data.length; i++) {
-    promises.push(mainPromise(i));
+    }))
   }
 
   // プロミスを全て実行
@@ -76,7 +65,6 @@ router.get('', (req, res) => {
     res.send(results);
     client.end()
   });
-
 })
 
 module.exports = router
