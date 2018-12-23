@@ -22,7 +22,7 @@ router.get('', (req, res) => {
     const rows = result.rows
     const responseData = rows.map(r => {
       return {
-        id : r.area_code,
+        code : r.area_code,
         name : r.prefectures
       }
     })
