@@ -1,0 +1,8 @@
+# npm
+node_modules/
+
+# git
+package-lock.json
+
+# vscode
+.vscode/
