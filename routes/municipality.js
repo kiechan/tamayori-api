@@ -19,7 +19,6 @@ router.get('', (req, res) => {
   if (req.body.area_code != null) {
       code = req.body.area_code
   }
-  console.log(req.body.area_code)
 
   let queryStr =        "SELECT area_code, municipality "
   queryStr = queryStr +   "FROM m_area "
@@ -28,7 +27,7 @@ router.get('', (req, res) => {
   queryStr = queryStr +    "AND district IS NULL "
   queryStr = queryStr +  "GROUP BY (area_code, municipality) "
 
-  client.query(queryStr, [req.body.area_code]).then((result) => {
+  client.query(queryStr, [code]).then((result) => {
     const rows = result.rows
     const responseData = rows.map(r => {
       return {

@@ -13,6 +13,8 @@ var odsRouter = require('./routes/ods');
 var prefecturesRouter = require('./routes/prefectures');
 var municipalityRouter = require('./routes/municipality');
 var categoryRouter = require('./routes/category');
+var odSaveRouter = require('./routes/odSave');
+
 
 var app = express();
 
@@ -39,6 +41,7 @@ app.use('/v1/ods', odsRouter);
 app.use('/prefectures', prefecturesRouter);
 app.use('/municipality', municipalityRouter);
 app.use('/category', categoryRouter);
+app.use('/odsave', odSaveRouter);
 
 // catch 404 and forward to error handler
 app.use(function (req, res, next) {
