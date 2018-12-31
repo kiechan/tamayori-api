@@ -28,6 +28,11 @@ router.post('', (req, res) => {
   let INSERT_CATEGORY_QUERY =                     "INSERT INTO m_category "
   INSERT_CATEGORY_QUERY = INSERT_CATEGORY_QUERY + "VALUES (nextval('category_code_seq'), $1, now(), now())"
 
+  // カテゴリ検索
+  let SELECT_CATEGORY_QUERY =                    "SELECT category_code "
+  SELECT_CATEGORY_QUERY = SELECT_CATEGORY_QUERY +  "FROM m_category "
+  SELECT_CATEGORY_QUERY = SELECT_CATEGORY_QUERY + "WHERE category_name = $1 "
+
   // オープンデータ検索
   let SELECT_OD_QUERY =              "SELECT * "
   SELECT_OD_QUERY = SELECT_OD_QUERY +  "FROM t_opendata "
@@ -54,84 +59,133 @@ router.post('', (req, res) => {
 
   // プロミス配列
   var promises = [];
+
+  // カテゴリ登録プロミス
+  promises.push(new Promise(function (resolve, reject) {
+    // カテゴリ登録
+    if (categoryCode == null && categoryName != null) {
+      // カテゴリコード、かつ、カテゴリ名がnullでない場合
+      // カテゴリコードを取得
+      client.query(SELECT_CATEGORY_QUERY, [categoryName]).then((cqResult) => {
+        if (cqResult.rows.length > 0 && cqResult.rows[0] != null) {
+          // カテゴリが登録済みの場合、登録しない。
+          // カテゴリコードを再設定
+          if (cqResult.rows.length > 0 && cqResult.rows[0] != null) {
+            categoryCode = cqResult.rows[0].category_code;
+            console.log('categoryCode : ' + categoryCode)
+          }
+          let message = "[" + categoryName + "]のカテゴリデータは登録済みです。カテゴリコード[" + categoryCode + "]として登録します。";
+          console.log(message);
+          resolve(message)
+
+        } else {
+          // カテゴリが未登録の場合、新規登録。
+          client.query(INSERT_CATEGORY_QUERY, [categoryName]).then((result) => {
+            // カテゴリコードを再設定
+            client.query(SELECT_CATEGORY_QUERY, [categoryName]).then((cqResult) => {
+              if (cqResult.rows.length > 0 && cqResult.rows[0] != null) {
+                categoryCode = cqResult.rows[0].category_code;
+                console.log('categoryCode : ' + categoryCode)
+              }
+            }).catch((e) => {
+              reject()
+              console.log(e)
+            })
+            let message = "[" + categoryName + "]のカテゴリデータを登録しました。";
+            console.log(message);
+            resolve(message)
+  
+          }).catch((e) => {
+            reject()
+            console.log(e)
+          })
+        }
+      }).catch((e) => {
+        reject()
+        console.log(e)
+      })
+    } else {
+      let message = "カテゴリ判定終了。";
+      resolve(message)
+    }
+  }))
+
   for (var i = 0; i < req.body.data.length; i++) {
+    // 地域、データ登録プロミス
     promises.push(new Promise(function (resolve, reject) {
 
-      // 地域
-      let district = datas[i].district
-      // ワード
-      let word = datas[i].word
-      // データ
-      let od = datas[i].value
-      // 単位
-      let unit = datas[i].unit
-      // URL
-      let url = datas[i].url
+      if (prefectures == null) {
+        // 都道府県がNULLの場合、処理しない。
+        resolve('エラー。地域データが不足しています。')
+      } else {
+        // 地域
+        let district = datas[i].district
+        // ワード
+        let word = datas[i].word
+        // データ
+        let od = datas[i].value
+        // 単位
+        let unit = datas[i].unit
+        // URL
+        let url = datas[i].url
 
-      // 地域
-      let areaCode;
-      let areaName;
+        // 地域
+        let areaCode;
+        let areaName;
 
-      // 地域検索＆登録
-      let SELECT_AREA_QUERY_PARAM = [prefectures, municipality, district]
-      client.query(SELECT_AREA_QUERY, SELECT_AREA_QUERY_PARAM).then((aqResult) => {
-      if (aqResult.rows.length == 0 || aqResult.rows[0] == null) {
-          // 地域が0件の場合は新規登録
-          // 地域登録
-          let INSERT_AREA_QUERY_PARAM = [prefectures, municipality, district]
-          client.query(INSERT_AREA_QUERY, INSERT_AREA_QUERY_PARAM).then((result) => {
-            let message = "[" + prefectures + ", " + municipality + ", "  + district + "]の地域データを登録しました。";
-            console.log(message);
-          }).catch((e) => {
-            reject()
-            console.log(e)
-          })
-        } else {
-          // 地域コードを設定
-          areaCode = aqResult.rows[0].area_code;
-          areaName = prefectures + municipality + district;
-        }
-
-        // カテゴリ登録
-        if (categoryCode == null) {
-          // カテゴリコードがnullの場合は新規登録
-          client.query(INSERT_CATEGORY_QUERY, [categoryName]).then((result) => {
-            let message = "[" + categoryName + "]の地域データを登録しました。";
-            console.log(message);
-          }).catch((e) => {
-            reject()
-            console.log(e)
-          })
-        }
-
-        // オープンデータ検索＆登録
-        if (areaCode != null && categoryCode != null) {
-          client.query(SELECT_OD_QUERY, [areaCode, categoryCode]).then((oqResult) => {
-            if (oqResult.rows.length == 0 || oqResult.rows[0] == null) {
-              // オープンデータが0件の場合は新規登録
-              let INSERT_OD_QUERY_PARAM = [areaCode, categoryCode, word, od, unit, url];
-              client.query(INSERT_OD_QUERY, INSERT_OD_QUERY_PARAM).then((result) => {
-                let message = "[" + categoryName + ", " + areaName + ", " + word + ", " + od + ", " + unit + ", " + url + "]のオープンデータを登録しました。";
+        // 地域検索＆登録
+        let SELECT_AREA_QUERY_PARAM = [prefectures, municipality, district]
+        client.query(SELECT_AREA_QUERY, SELECT_AREA_QUERY_PARAM).then((aqResult) => {
+          if (aqResult.rows.length == 0 || aqResult.rows[0] == null) {
+              // 地域が0件の場合は新規登録
+              // 地域登録
+              let INSERT_AREA_QUERY_PARAM = [prefectures, municipality, district]
+              client.query(INSERT_AREA_QUERY, INSERT_AREA_QUERY_PARAM).then((result) => {
+                let message = "[" + prefectures + ", " + municipality + ", "  + district + "]の地域データを登録しました。";
                 console.log(message);
               }).catch((e) => {
                 reject()
                 console.log(e)
               })
-            } else {
-              let message = "[" + categoryName + ", " + areaName + ", " + word + ", " + od + ", " + unit + ", " + url + "]のオープンデータは登録済みです。";
-              console.log(message)
-            }
-          }).catch((e) => {
-            reject()
-            console.log(e)
-          })
-          resolve('sucsess')
-        }
+          } else {
+            // 地域コードを設定
+            areaCode = aqResult.rows[0].area_code;
+            areaName = prefectures + municipality + district;
+          }
 
-      }).catch((e) => {
-        reject()
-        console.log(e)
-      })
+          // オープンデータ検索＆登録
+          if (areaCode != null && categoryCode != null) {
+            client.query(SELECT_OD_QUERY, [areaCode, categoryCode]).then((oqResult) => {
+              if (oqResult.rows.length == 0 || oqResult.rows[0] == null) {
+                // オープンデータが0件の場合は新規登録
+                let INSERT_OD_QUERY_PARAM = [areaCode, categoryCode, word, od, unit, url];
+                client.query(INSERT_OD_QUERY, INSERT_OD_QUERY_PARAM).then((result) => {
+                  let message = "[" + categoryName + ", " + areaName + ", " + word + ", " + od + ", " + unit + ", " + url + "]のオープンデータを登録しました。";
+                  console.log(message);
+                }).catch((e) => {
+                  reject()
+                  console.log(e)
+                })
+              } else {
+                let message = "[" + categoryName + ", " + areaName + ", " + word + ", " + od + ", " + unit + ", " + url + "]のオープンデータは登録済みです。";
+                console.log(message)
+              }
+            }).catch((e) => {
+              reject()
+              console.log(e)
+            })
+            resolve('sucsess')
+          } else {
+            console.log('areaCode : ' + areaCode)
+            console.log('categoryCode : ' + categoryCode)
+            resolve('エラー。カテゴリデータが不足しています。')
+          }
+
+        }).catch((e) => {
+          reject()
+          console.log(e)
+        })
+      }
 
     }))
 }
