@@ -16,8 +16,8 @@ router.get('', (req, res) => {
   client.connect()
 
   let code = 0
-  if (req.body.area_code != null) {
-      code = req.body.area_code
+  if (req.query.code != null) {
+      code = req.query.code
   }
 
   let queryStr =        "SELECT area_code, municipality "
